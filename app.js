@@ -13,7 +13,7 @@
   // 2. Application State
   const state = {
     model: null,
-    webcam: null,
+    webcamStream: null,
     isWebcamActive: false,
     currentInputMode: "webcam", // "webcam" or "upload"
     isScanning: false,
@@ -919,8 +919,8 @@
       }, 500);
 
       // Webcams are scanned automatically in real-time, but manual tap fires a full capture event
-      if (state.webcam) {
-        await predictInput(state.webcam.canvas);
+      if (state.isWebcamActive && DOM.webcamVideo.srcObject) {
+        await predictInput(DOM.webcamVideo);
         triggerConfettiCelebration();
       }
     });
