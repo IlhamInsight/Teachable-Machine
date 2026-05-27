@@ -434,7 +434,7 @@
   }
 
   // 9. Prediction & Classification Engine
-  async function predictInput(inputElement) {
+  async function predictInput(inputElement, isManual = false) {
     if (!state.model) return;
 
     const startTime = performance.now();
@@ -471,10 +471,10 @@
     DOM.barBukanKucing.style.width = `${pctBukanKucing}%`;
 
     // Process Verdict Banner
-    processVerdict(pctKucing, pctBukanKucing, inputElement);
+    processVerdict(pctKucing, pctBukanKucing, inputElement, isManual);
   }
 
-  function processVerdict(pctKucing, pctBukanKucing, inputElement) {
+  function processVerdict(pctKucing, pctBukanKucing, inputElement, isManual = false) {
     let currentVerdict = "neutral";
     
     if (pctKucing > pctBukanKucing && pctKucing >= 65) {
@@ -483,8 +483,12 @@
       currentVerdict = "bukan-kucing";
     }
 
-    // React to changes in verdict to avoid visual/audio spam
-    if (currentVerdict !== state.lastVerdict) {
+    // Jika manual snap, kita bypass batasan 'state.lastVerdict' agar SELALU tersimpan di riwayat
+    if (currentVerdict !== state.lastVerdict || isManual) {
+      if (isManual) {
+        state.isConfettiFired = false; // reset flag agar konfeti & penyimpanan terpantik
+      }
+      
       state.lastVerdict = currentVerdict;
       
       if (currentVerdict === "kucing") {
@@ -501,7 +505,7 @@
           triggerConfettiCelebration();
           state.isConfettiFired = true;
           
-          // Save this to local history log (throttle so we don't spam webcam frame captures)
+          // Simpan ke riwayat lokal
           saveScanToHistory("Kucing", pctKucing, inputElement);
         }
 
@@ -514,8 +518,8 @@
         
         state.isConfettiFired = false; // Reset
         
-        // Save scan history for unique items (avoid too many history items in webcam mode)
-        if (state.currentInputMode === "upload") {
+        // Simpan ke riwayat untuk unggah gambar atau jika dipicu tombol ambil foto manual
+        if (state.currentInputMode === "upload" || isManual) {
           saveScanToHistory("Bukan Kucing", pctBukanKucing, inputElement);
         }
 
@@ -920,7 +924,7 @@
 
       // Webcams are scanned automatically in real-time, but manual tap fires a full capture event
       if (state.isWebcamActive && DOM.webcamVideo.srcObject) {
-        await predictInput(DOM.webcamVideo);
+        await predictInput(DOM.webcamVideo, true);
         triggerConfettiCelebration();
       }
     });
