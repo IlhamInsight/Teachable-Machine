@@ -311,59 +311,15 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // Helper untuk membaca kamera yang tersedia dan mengisi dropdown UI
-  async function populateCameraSelector() {
+  // Helper untuk mengecek apakah perangkat memiliki lebih dari 1 kamera (seperti HP)
+  async function hasMultipleCameras() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      
-      DOM.cameraSelect.innerHTML = "";
-      
-      if (videoDevices.length === 0) {
-        DOM.cameraSelectContainer.style.display = "none";
-        return null;
-      }
-      
-      // Tampilkan kontainer pilihan kamera
-      DOM.cameraSelectContainer.style.display = "flex";
-      
-      // Isi elemen select dengan daftar kamera
-      videoDevices.forEach(d => {
-        const option = document.createElement("option");
-        option.value = d.deviceId;
-        option.textContent = d.label || `Kamera ${DOM.cameraSelect.children.length + 1}`;
-        DOM.cameraSelect.appendChild(option);
-      });
-      
-      // Cari kamera fisik bawaan laptop (integrated, built-in, front, HD camera, dll)
-      let bestDevice = videoDevices.find(d => {
-        const label = d.label.toLowerCase();
-        return (label.includes('integrated') || label.includes('built-in') || label.includes('front') || label.includes('internal') || label.includes('hd') || label.includes('usb') || label.includes('camera') || label.includes('webcam')) && 
-               !label.includes('obs') && !label.includes('virtual');
-      });
-      
-      // Jika tidak ada kata kunci di atas, pilih kamera apa saja yang bukan OBS
-      if (!bestDevice) {
-        bestDevice = videoDevices.find(d => {
-          const label = d.label.toLowerCase();
-          return !label.includes('obs') && !label.includes('virtual');
-        });
-      }
-      
-      // Fallback ke kamera pertama jika tidak ada pilihan lain
-      if (!bestDevice) {
-        bestDevice = videoDevices[0];
-      }
-      
-      if (bestDevice) {
-        DOM.cameraSelect.value = bestDevice.deviceId;
-        console.log("Otomatis menyetel pilihan default kamera ke:", bestDevice.label);
-      }
-      
-      return bestDevice ? bestDevice.deviceId : null;
+      return videoDevices.length > 1;
     } catch (e) {
-      console.warn("Gagal mengisi dropdown kamera:", e);
-      return null;
+      // Fallback jika enumerasi gagal, tetap izinkan beralih di HP
+      return true;
     }
   }
 
@@ -375,34 +331,41 @@
     DOM.aiStatus.classList.add("scanning");
 
     try {
-      // Minta izin kamera pertama kali agar label nama kamera terbaca
-      const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      // Matikan stream sementara segera setelah izin didapatkan
-      tempStream.getTracks().forEach(track => track.stop());
-
-      // Pindai kamera dan isi dropdown select
-      const bestDeviceId = await populateCameraSelector();
-      
       const size = 400;
-      const flip = true; // mirror mode
+      
+      // Mengambil opsi Kamera Depan ('user') atau Belakang ('environment')
+      const facingMode = DOM.cameraSelect.value || 'user';
+      // Hanya aktifkan mirror (flip) jika menggunakan kamera depan (selfie)
+      const flip = (facingMode === 'user');
       
       state.webcam = new tmImage.Webcam(size, size, flip);
       
-      // Ambil deviceId terpilih dari dropdown UI
-      const selectedDeviceId = DOM.cameraSelect.value || bestDeviceId;
-      const setupOptions = selectedDeviceId ? { deviceId: selectedDeviceId } : {};
-      
-      await state.webcam.setup(setupOptions); // request camera access dengan kamera terpilih
+      // Setup menggunakan standar HTML5 facingMode
+      await state.webcam.setup({ facingMode: facingMode });
       await state.webcam.play();
+      
+      // Deteksi jumlah kamera: Hanya tampilkan dropdown selector jika memiliki > 1 kamera (seperti di HP)
+      const multiCamera = await hasMultipleCameras();
+      if (multiCamera) {
+        DOM.cameraSelectContainer.style.display = "flex";
+      } else {
+        DOM.cameraSelectContainer.style.display = "none";
+      }
       
       // Replace placeholder with active webcam element
       DOM.webcamVideo.style.display = "block";
       DOM.webcamPlaceholder.style.display = "none";
       DOM.webcamControls.style.display = "flex";
       
-      // Teachable Machine handles the canvas/video rendering
-      // Append TM webcam canvas inside video container or map to video element
+      // Buka aliran video secara native ke elemen video kita
       DOM.webcamVideo.srcObject = state.webcam.webcam.srcObject;
+      
+      // Solusi Mutlak Mobile: Paksa play kembali untuk mengatasi kebijakan blokir autoplay di Chrome/Safari HP
+      try {
+        await DOM.webcamVideo.play();
+      } catch (playErr) {
+        console.warn("Play manual diblokir peramban HP:", playErr);
+      }
       
       state.isWebcamActive = true;
       state.isScanning = true;
@@ -438,6 +401,7 @@
     
     DOM.webcamVideo.srcObject = null;
     DOM.webcamVideo.style.display = "none";
+    DOM.cameraSelectContainer.style.display = "none";
     DOM.webcamPlaceholder.style.display = "flex";
     DOM.webcamControls.style.display = "none";
     

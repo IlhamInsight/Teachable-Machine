@@ -109,9 +109,12 @@
                 <!-- Floating Camera Selector -->
                 <div class="camera-select-wrapper" id="camera-select-container" style="display: none;">
                   <i data-lucide="video" class="select-camera-icon"></i>
-                  <select id="camera-select" class="camera-select-dropdown"></select>
+                  <select id="camera-select" class="camera-select-dropdown">
+                    <option value="user">📷 Kamera Depan (Selfie / Laptop)</option>
+                    <option value="environment">📸 Kamera Belakang (Kamera HP)</option>
+                  </select>
                 </div>
-                <video id="webcam" autoplay playsinline width="400" height="400"></video>
+                <video id="webcam" autoplay playsinline muted width="400" height="400"></video>
                 <div class="webcam-placeholder">
                   <div class="placeholder-icon"><i data-lucide="aperture"></i></div>
                   <h3>Kamera Belum Aktif</h3>
