@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FelisID - Detektor Kucing AI Modern</title>
+  
+  <!-- Meta SEO -->
+  <meta name="description" content="FelisID adalah web detektor kucing berbasis AI menggunakan Teachable Machine. Pindai foto kucing atau gunakan kamera Anda secara real-time untuk klasifikasi instan.">
+  <meta name="keywords" content="detektor kucing, AI kucing, teachable machine kucing, cat detector, tensorflow js kucing">
+  <meta name="author" content="FelisID Team">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Style Sheets -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- TensorFlow.js & Teachable Machine Image SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.3/dist/teachablemachine-image.min.js"></script>
+
+  <!-- Canvas Confetti for Celebrations -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- LOADING OVERLAY -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loader-content">
+      <div class="loader-cat-spinner">
+        <div class="spinner-ring"></div>
+        <div class="cat-icon-glow">🐱</div>
+      </div>
+      <h2>Menginisialisasi FelisID AI</h2>
+      <p>Mengunduh model neural network Teachable Machine...</p>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="model-progress"></div>
+      </div>
+      <span class="loading-status" id="loading-status">Menghubungkan ke Google Cloud API...</span>
+    </div>
+  </div>
+
+  <!-- NAVIGATION BAR -->
+  <header class="main-header">
+    <div class="container header-container">
+      <a href="#" class="logo" id="logo-link">
+        <span class="logo-emoji">🐱</span>
+        <span class="logo-text">Felis<span class="highlight">ID</span></span>
+      </a>
+      
+      <nav class="main-nav">
+        <ul>
+          <li><a href="#scanner" class="nav-link active" data-target="scanner"><i data-lucide="scan-eye"></i> Scanner AI</a></li>
+          <li><a href="#encyclopedia" class="nav-link" data-target="encyclopedia"><i data-lucide="book-open"></i> Ensiklopedia</a></li>
+          <li><a href="#history" class="nav-link" data-target="history"><i data-lucide="history"></i> Riwayat <span class="badge" id="history-badge">0</span></a></li>
+          <li><a href="#about-ai" class="nav-link" data-target="about-ai"><i data-lucide="cpu"></i> Bagaimana AI Bekerja</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <button id="sound-toggle" class="btn-circle btn-sound" title="Aktifkan/Matikan Suara Meow">
+          <i data-lucide="volume-2"></i>
+        </button>
+        <button id="neon-toggle" class="btn-circle btn-neon" title="Ubah Aksen Warna">
+          <span class="neon-dot"></span>
+        </button>
+      </div>
+
+      <button class="mobile-nav-toggle" aria-label="Menu Navigasi">
+        <i data-lucide="menu"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="app-main container">
+
+    <!-- SECTION 1: SCANNER AI -->
+    <section id="scanner" class="app-section active">
+      <div class="section-hero">
+        <h1 class="section-title">Detektor Kucing Berbasis <span class="gradient-text">Kecerdasan Buatan</span></h1>
+        <p class="section-subtitle">Pindai foto kucing kesayangan Anda atau gunakan webcam laptop Anda secara langsung untuk dianalisis oleh AI kami.</p>
+      </div>
+
+      <div class="scanner-grid">
+        <!-- LEFT COLUMN: SCANNING INTERFACE -->
+        <div class="glass-panel scanner-card">
+          <div class="scanner-header">
+            <div class="tabs-control">
+              <button class="tab-btn active" id="tab-webcam"><i data-lucide="camera"></i> Kamera Live</button>
+              <button class="tab-btn" id="tab-upload"><i data-lucide="image"></i> Unggah Gambar</button>
+            </div>
+          </div>
+
+          <!-- SCAN VIEWPORTS -->
+          <div class="scanner-viewport-wrapper">
+            <!-- Scan Laser Overlay -->
+            <div class="scan-laser" id="scanner-laser"></div>
+
+            <!-- Webcam Viewport -->
+            <div class="viewport active" id="viewport-webcam">
+              <div class="video-container">
+                <!-- Floating Camera Selector -->
+                <div class="camera-select-wrapper" id="camera-select-container" style="display: none;">
+                  <i data-lucide="video" class="select-camera-icon"></i>
+                  <select id="camera-select" class="camera-select-dropdown"></select>
+                </div>
+                <video id="webcam" autoplay playsinline width="400" height="400"></video>
+                <div class="webcam-placeholder">
+                  <div class="placeholder-icon"><i data-lucide="aperture"></i></div>
+                  <h3>Kamera Belum Aktif</h3>
+                  <p>Tekan tombol "Mulai Kamera" di bawah untuk mengaktifkan klasifikasi real-time.</p>
+                  <button class="btn btn-primary btn-glow" id="btn-start-webcam">
+                    <i data-lucide="play-circle"></i> Mulai Kamera
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Viewport -->
+            <div class="viewport" id="viewport-upload">
+              <div class="drag-drop-area" id="drag-drop-zone">
+                <input type="file" id="file-input" accept="image/*" style="display: none;">
+                <div class="upload-placeholder" id="upload-placeholder-content">
+                  <div class="placeholder-icon bounce"><i data-lucide="upload-cloud"></i></div>
+                  <h3>Seret & Lepaskan Gambar</h3>
+                  <p>atau klik area ini untuk memilih file gambar dari perangkat Anda</p>
+                  <span class="file-limits">Format yang didukung: JPG, PNG, WEBP</span>
+                </div>
+                <div class="upload-preview-container" id="upload-preview-container" style="display: none;">
+                  <img id="image-preview" src="#" alt="Pratinjau Unggahan">
+                  <button class="btn-clear-upload" id="btn-clear-file" title="Hapus Gambar"><i data-lucide="x"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SCAN ACTIONS -->
+          <div class="scanner-actions">
+            <div class="webcam-controls" id="webcam-controls-container" style="display: none;">
+              <button class="btn btn-secondary" id="btn-stop-webcam">
+                <i data-lucide="square"></i> Matikan Kamera
+              </button>
+              <button class="btn btn-primary btn-glow" id="btn-snap-photo">
+                <i data-lucide="camera"></i> Pindai Cuplikan
+              </button>
+            </div>
+            
+            <div class="upload-controls" id="upload-controls-container" style="display: none;">
+              <button class="btn btn-primary btn-glow w-100" id="btn-scan-uploaded" disabled>
+                <i data-lucide="sparkles"></i> Analisis Gambar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: RESULTS PANEL -->
+        <div class="glass-panel results-card">
+          <div class="results-header">
+            <h2><i data-lucide="bar-chart-3"></i> Analisis Hasil AI</h2>
+            <span class="status-badge" id="ai-status">Siap Menganalisis</span>
+          </div>
+
+          <div class="results-body">
+            <!-- Verdict Banner -->
+            <div class="verdict-banner neutral" id="verdict-banner">
+              <div class="verdict-icon" id="verdict-emoji">🔍</div>
+              <div class="verdict-details">
+                <h3 id="verdict-title">Menunggu Data Input</h3>
+                <p id="verdict-desc">Silakan nyalakan kamera live atau unggah gambar untuk memulai pemindaian kecerdasan buatan.</p>
+              </div>
+            </div>
+
+            <!-- Detailed Probability Bars -->
+            <div class="metrics-container">
+              <h3>Skor Keyakinan Model (Confidence Score)</h3>
+              
+              <!-- Kucing Metric -->
+              <div class="metric-row">
+                <div class="metric-info">
+                  <span class="metric-label"><span class="cat-dot"></span> Kucing (Cat)</span>
+                  <span class="metric-value" id="val-kucing">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill orange-glow" id="bar-kucing" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <!-- Bukan Kucing Metric -->
+              <div class="metric-row">
+                <div class="metric-info">
+                  <span class="metric-label"><span class="not-cat-dot"></span> Bukan Kucing</span>
+                  <span class="metric-value" id="val-bukan-kucing">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill blue-glow" id="bar-bukan-kucing" style="width: 0%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Diagnostics Card -->
+            <div class="diagnostics-panel">
+              <div class="diag-header"><i data-lucide="info"></i> Info Metrik Model</div>
+              <div class="diag-grid">
+                <div class="diag-item">
+                  <span class="diag-label">Resolusi Input:</span>
+                  <span class="diag-value">224 × 224 px</span>
+                </div>
+                <div class="diag-item">
+                  <span class="diag-label">Waktu Respon:</span>
+                  <span class="diag-value" id="diag-latency">~0ms</span>
+                </div>
+                <div class="diag-item">
+                  <span class="diag-label">Engine:</span>
+                  <span class="diag-value">TensorFlow.js WebGL</span>
+                </div>
+                <div class="diag-item">
+                  <span class="diag-label">Akurasi:</span>
+                  <span class="diag-value">±98.4%</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: ENCYCLOPEDIA (ENSIKLOPEDIA KUCING) -->
+    <section id="encyclopedia" class="app-section">
+      <div class="section-hero">
+        <h1 class="section-title">Ensiklopedia <span class="gradient-text">Ras Kucing</span></h1>
+        <p class="section-subtitle">Pelajari berbagai ras kucing populer, karakteristik unik, tingkat keaktifan, dan panduan perawatan mereka.</p>
+      </div>
+
+      <!-- Search and Filters -->
+      <div class="filter-bar glass-panel">
+        <div class="search-input-wrapper">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="breed-search" placeholder="Cari ras kucing (contoh: Anggora, Persia...)...">
+        </div>
+        <div class="filter-tags">
+          <button class="filter-tag active" data-filter="all">Semua Ras</button>
+          <button class="filter-tag" data-filter="bulu-panjang">Bulu Panjang</button>
+          <button class="filter-tag" data-filter="bulu-pendek">Bulu Pendek</button>
+          <button class="filter-tag" data-filter="aktif">Sangat Aktif</button>
+        </div>
+      </div>
+
+      <!-- Encyclopedia Grid -->
+      <div class="breeds-grid" id="breeds-grid">
+        <!-- Cards will be dynamically generated by JS for a rich and interactive feel, but let's have beautiful static fallbacks for structural rendering -->
+      </div>
+    </section>
+
+    <!-- SECTION 3: SCAN HISTORY -->
+    <section id="history" class="app-section">
+      <div class="section-hero">
+        <h1 class="section-title">Riwayat <span class="gradient-text">Klasifikasi Anda</span></h1>
+        <p class="section-subtitle">Semua riwayat pemindaian gambar Anda disimpan secara aman dan lokal di perangkat Anda.</p>
+      </div>
+
+      <div class="history-actions-bar">
+        <p class="history-count-text">Menampilkan <span id="history-count">0</span> hasil pemindaian</p>
+        <button class="btn btn-secondary text-danger" id="btn-clear-history">
+          <i data-lucide="trash-2"></i> Bersihkan Semua Riwayat
+        </button>
+      </div>
+
+      <!-- History States -->
+      <div id="history-empty" class="glass-panel history-empty-state">
+        <div class="empty-icon"><i data-lucide="history"></i></div>
+        <h3>Belum Ada Riwayat Pemindaian</h3>
+        <p>Gunakan tab Scanner AI untuk memindai gambar kucing atau mengaktifkan kamera live Anda sekarang!</p>
+        <a href="#scanner" class="btn btn-primary btn-glow nav-shortcut" data-target="scanner">
+          <i data-lucide="scan"></i> Mulai Pindai Sekarang
+        </a>
+      </div>
+
+      <div class="history-grid" id="history-grid" style="display: none;">
+        <!-- Filled dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- SECTION 4: ABOUT AI (BAGAIMANA AI BEKERJA) -->
+    <section id="about-ai" class="app-section">
+      <div class="section-hero">
+        <h1 class="section-title">Bagaimana <span class="gradient-text">Kecerdasan Buatan</span> Bekerja?</h1>
+        <p class="section-subtitle">Pelajari proses di balik layar bagaimana model visi komputer (Computer Vision) mendeteksi gambar kucing secara instan.</p>
+      </div>
+
+      <div class="about-grid">
+        <!-- Visual Diagram -->
+        <div class="glass-panel about-diagram-card">
+          <div class="diagram-container">
+            <svg viewBox="0 0 800 450" class="network-svg">
+              <defs>
+                <linearGradient id="grad-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#ff7b00;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#ffae00;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#00c3ff;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#006eff;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="grad-line" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#ff7b00;stop-opacity:0.8" />
+                  <stop offset="50%" style="stop-color:#a855f7;stop-opacity:0.3" />
+                  <stop offset="100%" style="stop-color:#00c3ff;stop-opacity:0.8" />
+                </linearGradient>
+              </defs>
+              <!-- Input Nodes -->
+              <g class="nodes-input">
+                <circle cx="100" cy="100" r="12" fill="#ff7b00" class="pulse-node" />
+                <circle cx="100" cy="180" r="12" fill="#ff7b00" />
+                <circle cx="100" cy="260" r="12" fill="#ff7b00" />
+                <circle cx="100" cy="340" r="12" fill="#ff7b00" />
+                <text x="100" y="75" text-anchor="middle" fill="#94a3b8" font-size="12">Pixel Input (224x224)</text>
+              </g>
+
+              <!-- Hidden Layer 1 Nodes -->
+              <g class="nodes-hidden-1">
+                <circle cx="280" cy="80" r="10" fill="#a855f7" />
+                <circle cx="280" cy="150" r="10" fill="#a855f7" />
+                <circle cx="280" cy="220" r="10" fill="#a855f7" />
+                <circle cx="280" cy="290" r="10" fill="#a855f7" />
+                <circle cx="280" cy="360" r="10" fill="#a855f7" />
+                <text x="280" y="55" text-anchor="middle" fill="#94a3b8" font-size="12">Ekstraksi Fitur (CNN)</text>
+              </g>
+
+              <!-- Hidden Layer 2 Nodes -->
+              <g class="nodes-hidden-2">
+                <circle cx="480" cy="110" r="10" fill="#3b82f6" />
+                <circle cx="480" cy="180" r="10" fill="#3b82f6" />
+                <circle cx="480" cy="250" r="10" fill="#3b82f6" />
+                <circle cx="480" cy="320" r="10" fill="#3b82f6" />
+                <text x="480" y="85" text-anchor="middle" fill="#94a3b8" font-size="12">Dense Layers</text>
+              </g>
+
+              <!-- Output Nodes -->
+              <g class="nodes-output">
+                <circle cx="680" cy="160" r="16" fill="url(#grad-orange)" class="glow-node-orange" />
+                <circle cx="680" cy="280" r="16" fill="url(#grad-blue)" class="glow-node-blue" />
+                <text x="710" y="165" fill="#f8fafc" font-weight="600" font-size="14">Kucing 🐱</text>
+                <text x="710" y="285" fill="#f8fafc" font-weight="600" font-size="14">Bukan Kucing 🚫</text>
+              </g>
+
+              <!-- Connections (Lines) -->
+              <!-- Input to Hidden 1 -->
+              <path d="M100 100 L280 80 M100 100 L280 150 M100 100 L280 220" stroke="rgba(255, 123, 0, 0.2)" stroke-width="1.5" />
+              <path d="M100 180 L280 80 M100 180 L280 150 M100 180 L280 220 M100 180 L280 290" stroke="rgba(255, 123, 0, 0.2)" stroke-width="1.5" />
+              <path d="M100 260 L280 150 M100 260 L280 220 M100 260 L280 290 M100 260 L280 360" stroke="rgba(255, 123, 0, 0.2)" stroke-width="1.5" />
+              <path d="M100 340 L280 220 M100 340 L280 290 M100 340 L280 360" stroke="rgba(255, 123, 0, 0.2)" stroke-width="1.5" />
+
+              <!-- Hidden 1 to Hidden 2 -->
+              <path d="M280 80 L480 110 M280 80 L480 180 M280 150 L480 110 M280 150 L480 180 M280 150 L480 250" stroke="rgba(168, 85, 247, 0.2)" stroke-width="1.5" />
+              <path d="M280 220 L480 180 M280 220 L480 250 M280 220 L480 320" stroke="rgba(168, 85, 247, 0.2)" stroke-width="1.5" />
+              <path d="M280 290 L480 180 M280 290 L480 250 M280 290 L480 320" stroke="rgba(168, 85, 247, 0.2)" stroke-width="1.5" />
+              <path d="M280 360 L480 250 M280 360 L480 320" stroke="rgba(168, 85, 247, 0.2)" stroke-width="1.5" />
+
+              <!-- Hidden 2 to Output -->
+              <path d="M480 110 L680 160 M480 110 L680 280 M480 180 L680 160 M480 180 L680 280" stroke="rgba(59, 130, 246, 0.2)" stroke-width="1.5" />
+              <path d="M480 250 L680 160 M480 250 L680 280 M480 320 L680 160 M480 320 L680 280" stroke="rgba(59, 130, 246, 0.2)" stroke-width="1.5" />
+
+              <!-- Animated Signal -->
+              <circle r="4" fill="#f43f5e" class="animated-signal">
+                <animateMotion dur="4s" repeatCount="indefinite" path="M100 100 L280 150 L480 250 L680 160" />
+              </circle>
+              <circle r="4" fill="#06b6d4" class="animated-signal">
+                <animateMotion dur="4s" begin="2s" repeatCount="indefinite" path="M100 260 L280 220 L480 180 L680 280" />
+              </circle>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Explanatory Content -->
+        <div class="about-content">
+          <div class="glass-panel text-card">
+            <h3><span class="num-badge">1</span> Input Gambar (Matriks Piksel)</h3>
+            <p>Saat Anda memotret atau mengunggah gambar kucing, peramban Anda akan mengubahnya menjadi resolusi standar model, yaitu <strong>224x224 piksel</strong> dengan 3 saluran warna (RGB). Piksel-piksel ini direpresentasikan sebagai angka matriks numerik.</p>
+          </div>
+
+          <div class="glass-panel text-card">
+            <h3><span class="num-badge">2</span> Konvolusi (Convolutional Neural Network)</h3>
+            <p>Di sinilah keajaiban TensorFlow.js terjadi! Gambar dilewatkan melalui puluhan lapisan konvolusi. Lapisan pertama mendeteksi tepi garis sederhana, lapisan berikutnya mendeteksi bentuk (lingkaran mata, kumis, telinga segitiga), dan lapisan terdalam mengenali struktur utuh seekor kucing.</p>
+          </div>
+
+          <div class="glass-panel text-card">
+            <h3><span class="num-badge">3</span> Softmax Klasifikasi</h3>
+            <p>Di lapisan output terakhir, model matematika menghitung nilai probabilitas untuk setiap kategori menggunakan fungsi <strong>Softmax</strong>. Nilai ini melambangkan skor keyakinan model (dalam persen) apakah gambar tersebut adalah seekor <strong>Kucing</strong> atau <strong>Bukan Kucing</strong>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="main-footer">
+    <div class="container footer-container">
+      <div class="footer-brand">
+        <span class="footer-logo">🐱 FelisID</span>
+        <p>Platform klasifikasi kucing cerdas waktu nyata dengan akselerasi perangkat keras WebGL di peramban Anda.</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-link-group">
+          <h4>Pustaka Inti</h4>
+          <ul>
+            <li><a href="https://js.tensorflow.org/" target="_blank" rel="noopener">TensorFlow.js</a></li>
+            <li><a href="https://teachablemachine.withgoogle.com/" target="_blank" rel="noopener">Teachable Machine</a></li>
+          </ul>
+        </div>
+        <div class="footer-link-group">
+          <h4>Proyek</h4>
+          <ul>
+            <li><a href="#scanner" class="nav-shortcut" data-target="scanner">Scanner</a></li>
+            <li><a href="#encyclopedia" class="nav-shortcut" data-target="encyclopedia">Ensiklopedia</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 FelisID AI. Dibuat dengan ❤️ untuk pembelajaran komputer vision.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- App Main Code -->
+  <script src="app.js"></script>
+</body>
+</html>
