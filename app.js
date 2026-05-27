@@ -394,9 +394,9 @@
       state.animationFrameId = null;
     }
     
-    if (state.webcam) {
-      state.webcam.stop();
-      state.webcam = null;
+    if (state.webcamStream) {
+      state.webcamStream.getTracks().forEach(track => track.stop());
+      state.webcamStream = null;
     }
     
     DOM.webcamVideo.srcObject = null;
@@ -414,15 +414,12 @@
     if (!state.isScanning || !state.isWebcamActive) return;
     
     try {
-      // Update camera frame secara aman
-      if (state.webcam) {
-        state.webcam.update();
-        
+      if (DOM.webcamVideo.srcObject) {
         const now = performance.now();
         if (now - lastPredictionTime >= PREDICTION_INTERVAL) {
           lastPredictionTime = now;
-          // Jalankan prediksi secara asinkron
-          await predictInput(state.webcam.canvas);
+          // Jalankan prediksi secara asinkron menggunakan elemen video langsung
+          await predictInput(DOM.webcamVideo);
         }
       }
     } catch (err) {
